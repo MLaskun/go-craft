@@ -38,6 +38,24 @@ func readVarInt(conn net.Conn) (int32, error) {
 	return value, nil
 }
 
+// TODO: check if there is any difference between this and
+// []byte{byte(int32)}
+func writeVarInt(value int32) []byte {
+	buf := make([]byte, 0, 5)
+	for {
+		if (value &^ SEGMENT_BITS) == 0 {
+			buf = append(buf, byte(value))
+			break
+		}
+
+		buf = append(buf, byte((value&SEGMENT_BITS)|CONTINUE_BIT))
+
+		value >>= 7
+	}
+
+	return buf
+}
+
 func readVarText(conn net.Conn) (string, error) {
 	size, err := readVarInt(conn)
 	if err != nil {
@@ -45,12 +63,17 @@ func readVarText(conn net.Conn) (string, error) {
 	}
 
 	buf := make([]byte, size)
-    _, err = conn.Read(buf[:])
+	_, err = conn.Read(buf[:])
 	if err != nil {
 		return "", err
 	}
 
 	return string(buf), nil
+}
+
+func wrapString(s string) []byte {
+	data := append([]byte{byte(len(s))}, []byte(s)...)
+	return data
 }
 
 func writePacket(conn net.Conn, packetID byte, data []byte) {
