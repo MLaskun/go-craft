@@ -23,6 +23,11 @@ func HandleClient(conn net.Conn) {
 
 	if state == 2 {
 		fmt.Println("Logging in")
+		state = handleLogin(conn)
+	}
+
+	if state == 3 {
+		fmt.Println("Playing state!")
 	}
 }
 
@@ -90,12 +95,61 @@ func handleStatus(conn net.Conn) {
 	sendPingResponse(conn, payload)
 }
 
+func handleLogin(conn net.Conn) int {
+	_, err := readVarInt(conn)
+	if err != nil {
+		return 0
+	}
+
+	_, err = readVarInt(conn)
+	if err != nil {
+		return 0
+	}
+
+	username, err := readVarText(conn)
+	if err != nil {
+		return 0
+	}
+	fmt.Println("Username:", username)
+	wrappedUsername := wrapString(username)
+
+	uuid := make([]byte, 16)
+	_, err = conn.Read(uuid)
+	if err != nil {
+		return 0
+	}
+
+	properties := writeVarInt(0)
+
+	success := append([]byte{0x02}, uuid...)
+	success = append(success, wrappedUsername...)
+	success = append(success, properties...)
+	size := []byte{byte(len(success))}
+	size = append(size, success...)
+
+	_, err = conn.Write(size)
+	if err != nil {
+		return 0
+	}
+
+	_, err = readVarInt(conn)
+	if err != nil {
+		return 0
+	}
+
+	p, err := readVarInt(conn)
+	if err != nil {
+		return 0
+	}
+	return int(p)
+}
+
 func sendPingResponse(conn net.Conn, payload []byte) {
 	writePacket(conn, 0x01, payload)
 }
 
 func sendServerStatus(conn net.Conn) {
-	response := `{"version":{"name":"1.21.4","protocol":769},"players":{"max":20,"online":0},"description":{"text":"Japiernicze Dziala"}}`
+	response := `{"version":{"name":"1.21.4","protocol":769},"players":{"max":2137,"online":9999},"description":{"text":"Japiernicze Dziala"}}`
 	data := wrapString(response)
 	packet := append([]byte{byte(len(data) + 1), 0x00}, data...)
 	_, err := conn.Write(packet)
