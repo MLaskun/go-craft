@@ -11,3 +11,8 @@ tidy:
 	go fmt ./...
 	@echo 'Tidying module dependencies'
 	go mod tidy
+
+## run: run local server
+.PHONY: run
+run:
+	go run main.go
